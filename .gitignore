@@ -1,0 +1,14 @@
+# Dataset descargado localmente (no subir a GitHub)
+dataset/
+
+# Entornos y cachés locales
+.venv/
+.vscode/
+__pycache__/
+*.pyc
+
+# Credenciales de Kaggle y archivos temporales
+.kaggle/
+kaggle.json
+access_token
+pdf_text.txt
