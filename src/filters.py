@@ -97,15 +97,10 @@ class ExGLeafSegmenter(ImageFilter):
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         mask_clean = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         
-        # Attenuate the background
-        background = cv2.GaussianBlur(image, (15, 15), 0)
-        background = cv2.addWeighted(background, 0.4, np.zeros_like(background), 0, 0)
-        
-        # Create output: Leaf regions stay original, background is attenuated
+        # Create output: Leaf regions stay original, background is pure black
         leaf_region = cv2.bitwise_and(image, image, mask=mask_clean)
-        bg_region = cv2.bitwise_and(background, background, mask=cv2.bitwise_not(mask_clean))
         
-        return cv2.add(leaf_region, bg_region)
+        return leaf_region
 
 
 class Pipeline(ImageFilter):
