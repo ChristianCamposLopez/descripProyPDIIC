@@ -12,3 +12,11 @@ __pycache__/
 kaggle.json
 access_token
 pdf_text.txt
+
+# Archivos auxiliares de LaTeX
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc

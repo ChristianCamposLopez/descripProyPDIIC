@@ -1,59 +1,85 @@
 # Procesamiento de Imágenes de Plantas - Detección de Plagas
 
-Este proyecto implementa técnicas de Procesamiento Digital de Imágenes (PDI) para analizar y preprocesar el conjunto de datos de hojas enfermas y sanas, cumpliendo con los requerimientos del primer parcial.
+Implementación del proyecto de Procesamiento Digital de Imágenes (PDI) para la detección de plagas y enfermedades en hojas de plantas (Universidad Tecnológica de la Mixteca — Dra. Verónica Rodríguez López).
 
-El proyecto ha sido refactorizado aplicando **principios S.O.L.I.D.** para asegurar un código modular, mantenible y escalable.
+El proyecto utiliza técnicas de PDI para analizar, preprocesar y segmentar el conjunto de datos de hojas enfermas y sanas, aplicando principios de diseño modular para asegurar un código mantenible y reproducible.
 
 ## Estructura del Proyecto
 
 ```text
 descripProyPDIIC/
-├── src/                        # Código fuente refactorizado (S.O.L.I.D.)
-│   ├── main.py                 # Orquestador y punto de entrada
+├── src/                        # Código fuente modular
+│   ├── main.py                 # Orquestador y punto de entrada (Filtros)
 │   ├── filters.py              # Interfaces y clases de Filtros (Pipeline, ExG, CLAHE, etc.)
-│   ├── dataset.py              # Lógica de carga y análisis del Dataset
+│   ├── dataset.py              # Carga y análisis del Dataset
 │   └── visualization.py        # Generación de grillas comparativas
-├── legacy/                     # Scripts monolíticos anteriores
-├── resultados/                 # Imágenes de salida y metadatos JSON generados
-├── pyproject.toml              # Definición del proyecto y dependencias (uv)
+├── segmentacion_parcial2.py    # Algoritmos de segmentación del 2do Parcial (Canny, Global, Otsu, K-Means)
+├── resultados_segmentacion/    # Resultados, gráficas y presentaciones del 2do Parcial
+│   ├── Presentacion_Segundo_Parcial_Segmentacion.pptx # Presentación PowerPoint (16:9)
+│   ├── presentacion_parcial2.pdf # Presentación Beamer (PDF)
+│   ├── comparaciones/          # Paneles comparativos de segmentación (Baja, Media, Alta)
+│   ├── diagramas/              # Diagramas de flujo por nivel de complejidad
+│   └── graficas/               # Histogramas y umbrales de segmentación
+├── resultados/                 # Salidas y metadatos JSON del 1er Parcial
+├── pyproject.toml              # Definición del proyecto y dependencias
 ├── download_dataset.py         # Script para descarga automática desde Kaggle
-├── reporte_pdi.tex             # Reporte formal en formato LaTeX
-└── reporte_pdi.pdf             # PDF compilado del reporte
+├── reporte_pdi.tex / .pdf      # Reporte formal del primer parcial
+└── reporte_parcial1.tex / .pdf # Reporte inicial en LaTeX
 ```
 
-## Requisitos y Entorno (con `uv`)
+---
 
-Este proyecto utiliza [uv](https://github.com/astral-sh/uv) como gestor de paquetes y dependencias ultrarrápido.
+## Dataset
 
-1. **Instalar uv** (si no lo tienes):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-2. **Sincronizar el entorno y dependencias**:
-   ```bash
-   uv sync
-   ```
-   Esto creará un entorno virtual aislado `.venv` e instalará `opencv-python-headless`, `numpy` y `kaggle`.
+El proyecto utiliza el [New Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset) de Kaggle.
 
-## Descarga del Dataset
+- **Total:** 87,900 imágenes JPG (256×256 píxeles, RGB).
+- **Categorías:** 38 clases de enfermedades + imágenes sin etiqueta.
+- **Distribución:** 70,295 imágenes de entrenamiento, 17,572 de validación y 33 de prueba.
 
-El proyecto utiliza el [New Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset). Para automatizar su descarga (2.7 GB):
+Para descargar automáticamente:
+```bash
+python download_dataset.py
+```
 
-1. Asegúrate de tener tu archivo `kaggle.json` configurado en `~/.kaggle/kaggle.json`.
-2. Ejecuta el script de descarga en el entorno de uv:
-   ```bash
-   uv run download_dataset.py
-   ```
-   Esto extraerá las imágenes en la carpeta `dataset/`.
+---
 
-## Ejecución del Pipeline PDI
+## Primer Parcial: Preprocesamiento y Filtros
 
-Para analizar el dataset, calcular las métricas y generar las imágenes comparativas aplicando los filtros S.O.L.I.D. (incluyendo la máscara de hoja ExG, Filtro Bilateral, CLAHE y Unsharp Masking):
+Pipeline de reducción de ruido y realce de características de enfermedad (CLAHE, Mediana, Gaussiano, Unsharp Masking, Exceso de Verde).
 
 ```bash
-uv run -m src.main --dataset dataset --salida resultados
+python -m src.main --dataset dataset --salida resultados
 ```
 
-Esto generará en la carpeta `resultados/`:
-- `dataset_stats.json`
-- `filtros_solid_01.png`, `filtros_solid_02.png`, etc.
+---
+
+## Segundo Parcial: Segmentación de Imágenes
+
+Implementación y comparación rigurosa de 4 algoritmos de segmentación sobre hojas clasificadas en 3 niveles de complejidad visual (Baja, Media y Alta):
+
+1. **Detector de bordes de Canny (1986):** Detección de discontinuidades con gradientes de Sobel, supresión de no máximos, umbralización con histéresis y reconstrucción morfológica de contornos.
+2. **Umbralización Global Iterativa:** Algoritmo de partición bimodal según Gonzalez & Woods.
+3. **Umbralización de Otsu (1979):** Cálculo analítico del umbral óptimo $T^*$ mediante maximización de varianza inter-clase.
+4. **Agrupamiento K-Means (1967):** Segmentación no supervisada en espacio de color $L^*a^*b^*$ discriminando fondo, hoja sana y tejido lesionado.
+
+### Archivos del Segundo Parcial en `resultados_segmentacion/`
+
+- **Presentaciones:**
+  - `Presentacion_Segundo_Parcial_Segmentacion.pptx`: Presentación en PowerPoint lista para exponer (formato widescreen 16:9).
+  - `presentacion_parcial2.pdf`: Presentación compilada con LaTeX Beamer (14 diapositivas estructuradas).
+  - `presentacion_parcial2.tex`: Código fuente en LaTeX Beamer.
+- **Visualizaciones y Métricas:**
+  - `comparaciones/caso_baja.png`: Panel 2×4 para Manzana Sana (Complejidad Baja).
+  - `comparaciones/caso_media.png`: Panel 2×4 para Tomate Early Blight (Complejidad Media).
+  - `comparaciones/caso_alta.png`: Panel 2×4 para Maíz Gray Leaf Spot (Complejidad Alta).
+  - `comparaciones/comparativa_global.png`: Tabla comparativa simultánea de los 4 métodos en los 3 casos.
+  - `graficas/histogramas_umbrales.png`: Distribución de intensidades y puntos de corte (Global vs Otsu).
+  - `diagramas/`: Diagramas de flujo de preprocesamiento y segmentación (`flujo_baja_complejidad.png`, `flujo_media_complejidad.png`, `flujo_alta_complejidad.png`).
+  - `metricas_segmentacion.json`: Parámetros cuantitativos y umbrales calculados.
+
+### Ejecución de la Segmentación
+
+```powershell
+python segmentacion_parcial2.py
+```
