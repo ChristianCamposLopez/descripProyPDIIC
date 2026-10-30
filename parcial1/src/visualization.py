@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from pathlib import Path
-from src.filters import ImageFilter
+from parcial1.src.filters import ImageFilter
 
 class Visualizer:
     """

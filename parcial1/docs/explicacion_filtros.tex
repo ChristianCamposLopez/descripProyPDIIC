@@ -1,0 +1,199 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{xcolor}
+\geometry{margin=2.5cm}
+
+\title{\textbf{Fundamentos Teóricos del Procesamiento de Imágenes}\\ \large Operaciones Aritméticas Paso a Paso con Matrices}
+\author{Mario Enrique Ramirez Gallardo}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Espacios de Color: ¿Por qué no RGB y qué es LAB?}
+
+Una imagen digital es fundamentalmente una matriz bidimensional (una cuadrícula) llena de números, donde cada número indica la intensidad de un píxel. En las imágenes a color, esta cuadrícula tiene tres ``capas'' o canales: Rojo (R), Verde (G) y Azul (B), formando el espacio de color \textbf{RGB}.
+
+Si aplicamos un filtro para mejorar el brillo directamente a las capas R, G y B, alteramos su equilibrio y terminamos distorsionando el color original de la planta (aparecen colores falsos).
+
+\textbf{Solución: Espacio de Color LAB ($L^*a^*b^*$)} \\
+Convertimos la imagen de RGB a un espacio llamado \textbf{LAB}. 
+\begin{itemize}
+    \item \textbf{Canal $L^*$ (Luminosidad):} Contiene únicamente la intensidad de la luz (es como una versión en blanco y negro de la foto).
+    \item \textbf{Canales $a^*$ y $b^*$ (Crominancia):} Contienen pura información de color (verde-rojo y azul-amarillo).
+\end{itemize}
+Al procesar las imágenes, tomamos solo la matriz $L^*$ y le aplicamos las mejoras de contraste (como CLAHE). Al finalizar, devolvemos las matrices de color $a^*$ y $b^*$ originales. Esto garantiza que mejoremos la iluminación sin alterar el color natural.
+
+\section{Operaciones Paso a Paso con Matrices}
+
+Un filtro funciona usando una matriz pequeña (por ejemplo, de $3 \times 3$) llamada \textbf{Kernel}. Este kernel se desliza por toda la imagen principal. Veamos cómo funciona la matemática paso a paso.
+
+\subsection{1. Filtro de Mediana (Filtro Estadístico Básico)}
+\textbf{Objetivo:} Eliminar un punto de ruido extremo.
+
+\textbf{Paso 1: Extraer la región $3 \times 3$} \\
+Imagina un píxel central ruidoso (brillo altísimo de 200) rodeado de hoja verde normal (valores cercanos a 50).
+$$
+\text{Región} = \begin{bmatrix}
+50 & 52 & 49 \\
+51 & \mathbf{200} & 50 \\
+48 & 53 & 50
+\end{bmatrix}
+$$
+
+\textbf{Paso 2: Ordenar los valores aritméticamente} \\
+Extraemos los 9 números de la matriz y los ordenamos de menor a mayor:
+$$ 48, 49, 50, 50, 50, 51, 52, 53, 200 $$
+
+\textbf{Paso 3: Seleccionar la mediana} \\
+El valor que está exactamente en el centro de la lista ordenada (el quinto valor) es el \textbf{50}. \\
+El nuevo valor del píxel central es \textbf{50}. ¡El ruido (200) fue eliminado matemáticamente!
+
+\textbf{Paso 4: Matriz Resultante} \\
+Conforme el kernel se desliza sobre los demás píxeles, estos también se estabilizan. La región que antes tenía ruido ahora queda completamente limpia y uniforme:
+$$
+\text{Matriz Resultante} \approx \begin{bmatrix}
+50 & 50 & 50 \\
+50 & \mathbf{50} & 50 \\
+50 & 50 & 50
+\end{bmatrix}
+$$
+
+\subsection{2. Filtro Bilateral (Filtro Suavizante Avanzado)}
+\textbf{Objetivo:} Promediar los valores para eliminar ruido suave, pero \textbf{sin mezclar píxeles oscuros con claros} para no borrar los bordes.
+
+\textbf{Paso 1: Extraer la región $3 \times 3$} \\
+Imagina un borde de la hoja donde hay variaciones naturales de luz (textura), y de pronto una mancha negra (enfermedad).
+$$
+\text{Región} = \begin{bmatrix}
+95 & 102 & 15 \\
+98 & \mathbf{100} & 12 \\
+105 & 99 & 10
+\end{bmatrix}
+$$
+\textit{Nota: El píxel central que queremos calcular actualmente vale 100.}
+
+\textbf{Paso 2: Calcular la matriz de Pesos (Kernel)} \\
+El filtro bilateral revisa a los vecinos. Si un vecino tiene un valor de intensidad parecido al píxel central (diferencia pequeña, digamos menor a 20 puntos), le da un peso alto (simplifiquemos como $1$). Si el vecino es radicalmente distinto, le da peso $0$.
+\begin{itemize}
+    \item Valores $95, 102, 98, 105, 99$: Son parecidos a $100 \rightarrow \text{Peso} = 1$
+    \item Valores $15, 12, 10$: Son oscuros, totalmente diferentes a $100 \rightarrow \text{Peso} = 0$
+\end{itemize}
+$$
+\text{Kernel (Pesos)} = \begin{bmatrix}
+1 & 1 & 0 \\
+1 & 1 & 0 \\
+1 & 1 & 0
+\end{bmatrix}
+$$
+
+\textbf{Paso 3: Multiplicación y Promedio} \\
+Multiplicamos cada píxel de la región original por su peso en el Kernel, y dividimos entre la suma de los pesos activos (que son 6):
+$$
+\text{Nuevo Valor} = \frac{(95 \times 1) + (102 \times 1) + (15 \times 0) + (98 \times 1) + (100 \times 1) + (12 \times 0) + (105 \times 1) + (99 \times 1) + (10 \times 0)}{6}
+$$
+$$
+\text{Nuevo Valor} = \frac{95 + 102 + 0 + 98 + 100 + 0 + 105 + 99 + 0}{6} = \frac{599}{6} = 99.83 \approx \mathbf{100}
+$$
+El filtro promedió la textura similar de la hoja (suavizando los valores 95-105 hacia un 100), pero ignoró por completo la mancha oscura. El borde se mantuvo intacto.
+
+\textbf{Paso 4: Matriz Resultante} \\
+Al calcular todos los píxeles de esta zona con el mismo principio, la textura de la hoja se unifica, pero la frontera con la enfermedad se mantiene nítida sin difuminarse:
+$$
+\text{Matriz Resultante} = \begin{bmatrix}
+100 & \mathbf{100} & 12 \\
+100 & \mathbf{100} & 12 \\
+100 & \mathbf{100} & 12
+\end{bmatrix}
+$$
+
+\subsection{3. Filtro Unsharp Masking o Realzante (Nitidez)}
+\textbf{Objetivo:} Multiplicar por una matriz especial (Laplaciana) que acentúa las diferencias para que las texturas resalten.
+
+\textbf{Paso 1: Conocer el Kernel Laplaciano y su Origen} \\
+¿De dónde salen estos números? Matemáticamente, es una aproximación de la segunda derivada espacial. Un filtro Laplaciano puro (que solo extrae bordes dejando todo lo demás en negro) tiene un $4$ al centro y $-1$ en los vecinos en cruz. Sin embargo, nuestro objetivo es \textbf{realzar} la imagen (Unsharp Masking), lo cual significa tomar la imagen original ($1$) y sumarle sus bordes ($4$). Por eso, el valor central es $5$ ($4+1$), mientras que los vecinos restan ($-1$).
+$$
+\text{Kernel} = \begin{bmatrix}
+ 0 & -1 &  0 \\
+-1 &  5 & -1 \\
+ 0 & -1 &  0
+\end{bmatrix}
+$$
+
+\textbf{Paso 2: Multiplicación de Matrices (Convolución)} \\
+Tomemos una región donde el centro es apenas un poco más claro (100) que el fondo (90):
+$$
+\text{Región} = \begin{bmatrix}
+90 & 90 & 90 \\
+90 & \mathbf{100} & 90 \\
+90 & 90 & 90
+\end{bmatrix}
+$$
+Multiplicamos la Región por el Kernel píxel por píxel (solo nos importan los vecinos en cruz y el centro):
+\begin{align*}
+\text{Arriba:} \quad & 90 \times (-1) = -90 \\
+\text{Abajo:} \quad & 90 \times (-1) = -90 \\
+\text{Izquierda:} \quad & 90 \times (-1) = -90 \\
+\text{Derecha:} \quad & 90 \times (-1) = -90 \\
+\text{Centro:} \quad & 100 \times (5) = +500
+\end{align*}
+
+\textbf{Paso 3: Suma Aritmética Total} \\
+$$
+\text{Resultado} = (-90) + (-90) + (-90) + (-90) + 500 = -360 + 500 = \mathbf{140}
+$$
+El píxel central, que antes solo destacaba por $10$ puntos ($100$ vs $90$), ahora destaca por $50$ puntos ($140$ vs $90$). ¡El borde ha sido dramáticamente realzado!
+
+\textbf{Paso 4: Matriz Resultante} \\
+Al actualizar el píxel central, la matriz resultante de esta zona refleja el agudizamiento del contraste. La textura de la hoja o el contorno de la enfermedad salta a la vista:
+$$
+\text{Matriz Resultante} = \begin{bmatrix}
+90 & 90 & 90 \\
+90 & \mathbf{140} & 90 \\
+90 & 90 & 90
+\end{bmatrix}
+$$
+
+\subsection{4. Segmentación ExG (Índice de Exceso de Verde)}
+\textbf{Objetivo:} Operar las 3 matrices RGB al mismo tiempo para que lo verde brille y lo demás se apague.
+
+\textbf{Aclaración vital: ¿En qué espacio de color opera?} \\
+Aunque mejoramos el contraste en el espacio LAB, el índice ExG \textbf{se calcula estrictamente en el espacio RGB original}. Esto se debe a un principio biológico: la clorofila de las plantas absorbe la luz roja y azul para la fotosíntesis, reflejando fuertemente el verde. Una vez calculada la máscara en RGB, funciona como una "tijera virtual" que recorta el fondo de nuestra imagen final procesada.
+
+\textbf{Paso 1: La Fórmula Matemática} \\
+Por cada píxel en la imagen RGB, aplicamos:
+$$ ExG = (2 \times \text{Verde}) - \text{Rojo} - \text{Azul} $$
+
+\textbf{Paso 2: Cálculo en un Píxel de Hoja (Verde)} \\
+Imagina un píxel con valores RGB: $R=50$, $G=150$, $B=50$.
+\begin{align*}
+ExG_{\text{hoja}} &= (2 \times 150) - 50 - 50 \\
+&= 300 - 100 \\
+&= \mathbf{200} \quad \text{(¡Un valor altísimo que brilla!)}
+\end{align*}
+
+\textbf{Paso 3: Cálculo en un Píxel de Fondo (Gris de Laboratorio)} \\
+Imagina un píxel del fondo gris: $R=120$, $G=120$, $B=120$.
+\begin{align*}
+ExG_{\text{fondo}} &= (2 \times 120) - 120 - 120 \\
+&= 240 - 240 \\
+&= \mathbf{0} \quad \text{(¡Un valor de cero absoluto, negro total!)}
+\end{align*}
+
+Como resultado matemático puro, la planta queda iluminada mientras que el fondo se oscurece automáticamente.
+
+\textbf{Paso 4: Matriz Resultante} \\
+Tras procesar toda la imagen, la matriz de salida que ve la computadora es un "mapa de calor" verde. El fondo inerte es cero absoluto (negro), permitiendo aislar la región médicamente importante:
+$$
+\text{Matriz Resultante} = \begin{bmatrix}
+0 & 0 & 0 \\
+0 & \mathbf{200} \text{ (Hoja)} & 0 \\
+0 & 0 & 0
+\end{bmatrix}
+$$
+
+\end{document}

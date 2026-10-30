@@ -1,85 +1,161 @@
-# Procesamiento de Imágenes de Plantas - Detección de Plagas
+# Proyecto PDI — Procesamiento de Imágenes de Plantas para Detección de Plagas
 
-Implementación del proyecto de Procesamiento Digital de Imágenes (PDI) para la detección de plagas y enfermedades en hojas de plantas (Universidad Tecnológica de la Mixteca — Dra. Verónica Rodríguez López).
+**Dataset:** New Plant Diseases Dataset (Kaggle)  
+**Alumno:** Irving Tristán Pérez Zurita · **Grupo:** 902-A  
+**Profesora:** Dra. Verónica Rodríguez López  
+**Universidad Tecnológica de la Mixteca**
 
-El proyecto utiliza técnicas de PDI para analizar, preprocesar y segmentar el conjunto de datos de hojas enfermas y sanas, aplicando principios de diseño modular para asegurar un código mantenible y reproducible.
+---
 
 ## Estructura del Proyecto
 
-```text
+```
 descripProyPDIIC/
-├── src/                        # Código fuente modular
-│   ├── main.py                 # Orquestador y punto de entrada (Filtros)
-│   ├── filters.py              # Interfaces y clases de Filtros (Pipeline, ExG, CLAHE, etc.)
-│   ├── dataset.py              # Carga y análisis del Dataset
-│   └── visualization.py        # Generación de grillas comparativas
-├── segmentacion_parcial2.py    # Algoritmos de segmentación del 2do Parcial (Canny, Global, Otsu, K-Means)
-├── resultados_segmentacion/    # Resultados, gráficas y presentaciones del 2do Parcial
-│   ├── Presentacion_Segundo_Parcial_Segmentacion.pptx # Presentación PowerPoint (16:9)
-│   ├── presentacion_parcial2.pdf # Presentación Beamer (PDF)
-│   ├── comparaciones/          # Paneles comparativos de segmentación (Baja, Media, Alta)
-│   ├── diagramas/              # Diagramas de flujo por nivel de complejidad
-│   └── graficas/               # Histogramas y umbrales de segmentación
-├── resultados/                 # Salidas y metadatos JSON del 1er Parcial
-├── pyproject.toml              # Definición del proyecto y dependencias
-├── download_dataset.py         # Script para descarga automática desde Kaggle
-├── reporte_pdi.tex / .pdf      # Reporte formal del primer parcial
-└── reporte_parcial1.tex / .pdf # Reporte inicial en LaTeX
+├── parcial1/                        ← PRIMER PARCIAL: Preprocesamiento y filtros
+│   ├── docs/                        ← Rúbrica P1, explicaciones teóricas y notas
+│   │   ├── descripProyPDIIC_PARTE1.pdf
+│   │   ├── Detalles_Irving.md
+│   │   ├── explicacion_filtros.pdf
+│   │   └── explicacion_filtros.tex
+│   ├── legacy/                      ← Script monolítico inicial de referencia
+│   │   └── analisis_filtros.py
+│   ├── resultados/                  ← Grids comparativos, distribución de clases y stats
+│   │   ├── dataset_stats.json
+│   │   ├── distribucion_clases.png
+│   │   └── filtros_01.png ... filtros_03.png
+│   ├── src/                         ← Código modular (SOLID / Patrón Composite)
+│   │   ├── dataset.py
+│   │   ├── filters.py               ← 28 filtros e transformaciones (5 categorías)
+│   │   ├── generar_grafica.py
+│   │   ├── main.py
+│   │   └── visualization.py
+│   ├── reporte_pdi.pdf              ← Reporte oficial de Parcial 1 (compilado)
+│   ├── reporte_pdi.tex              ← Código fuente LaTeX del reporte P1
+│   ├── reporte_parcial1.pdf         ← Versión alternativa de reporte
+│   └── reporte_parcial1.tex
+│
+├── parcial2/                        ← SEGUNDO PARCIAL: Segmentación de imágenes
+│   ├── docs/                        ← Rúbrica y especificación oficial P2
+│   │   └── descripProyPDIIC_PARTE2.pdf
+│   ├── legacy/                      ← Script monolítico inicial antes de modularizar
+│   │   └── segmentacion_parcial2.py
+│   ├── presentacion/                ← Presentaciones requeridas (Beamer + PowerPoint)
+│   │   ├── presentacion_parcial2.pdf
+│   │   ├── presentacion_parcial2.tex
+│   │   └── Presentacion_Segundo_Parcial_Segmentacion.pptx
+│   ├── resultados/                  ← Comparativas, diagramas de flujo y métricas
+│   │   ├── comparaciones/
+│   │   ├── diagramas/
+│   │   ├── graficas/
+│   │   └── metricas_segmentacion.json
+│   ├── src/                         ← Código modular (Canny, Global, Otsu, K-Means)
+│   │   ├── flowcharts.py
+│   │   ├── main.py
+│   │   ├── segmentation.py
+│   │   └── visualization.py
+│   ├── reporte_parcial2.pdf         ← Reporte detallado de Parcial 2 (compilado)
+│   └── reporte_parcial2.tex         ← Código fuente LaTeX del reporte P2
+│
+├── scripts/                         ← Scripts de utilidad general
+│   └── download_dataset.py          ← Descarga del dataset desde Kaggle
+├── pyproject.toml                   ← Configuración del proyecto y dependencias
+├── uv.lock                          ← Bloqueo determinista de dependencias
+├── README.md                        ← Documentación principal
+└── .gitignore                       ← Reglas de exclusión de Git
 ```
 
 ---
 
-## Dataset
+## Ejecución
 
-El proyecto utiliza el [New Plant Diseases Dataset](https://www.kaggle.com/datasets/vipoooool/new-plant-diseases-dataset) de Kaggle.
-
-- **Total:** 87,900 imágenes JPG (256×256 píxeles, RGB).
-- **Categorías:** 38 clases de enfermedades + imágenes sin etiqueta.
-- **Distribución:** 70,295 imágenes de entrenamiento, 17,572 de validación y 33 de prueba.
-
-Para descargar automáticamente:
+### Requisitos
 ```bash
-python download_dataset.py
+# Instalar dependencias con uv (recomendado)
+uv sync
 ```
 
----
-
-## Primer Parcial: Preprocesamiento y Filtros
-
-Pipeline de reducción de ruido y realce de características de enfermedad (CLAHE, Mediana, Gaussiano, Unsharp Masking, Exceso de Verde).
-
+### Descarga del Dataset (si es necesario)
 ```bash
-python -m src.main --dataset dataset --salida resultados
+uv run python3 scripts/download_dataset.py --dest dataset
+```
+
+### Parcial 1 — Grids de filtros
+```bash
+uv run python3 -m parcial1.src.main --dataset dataset --salida parcial1/resultados
+```
+
+### Parcial 2 — Segmentación
+```bash
+uv run python3 -m parcial2.src.main --dataset dataset --salida parcial2/resultados
+```
+
+### Compilar reportes LaTeX
+```bash
+# Reporte Parcial 1
+cd parcial1 && pdflatex reporte_pdi.tex && cd ..
+
+# Reporte Parcial 2
+cd parcial2 && pdflatex reporte_parcial2.tex && cd ..
+```
+pdflatex reporte_parcial2.tex
 ```
 
 ---
 
-## Segundo Parcial: Segmentación de Imágenes
+## Filtros implementados (Parcial 1)
 
-Implementación y comparación rigurosa de 4 algoritmos de segmentación sobre hojas clasificadas en 3 niveles de complejidad visual (Baja, Media y Alta):
+### Categoría 1 — Transformaciones de Intensidad
+| Clase | Fórmula | Descripción |
+|---|---|---|
+| `NegativeTransform` | `s = 255 - r` | Inversión de niveles de gris |
+| `LogTransform` | `s = c·log(1+r)` | Compresión de rango dinámico |
+| `GammaTransform` | `s = r^γ` | γ<1 aclara; γ>1 oscurece |
+| `ContrastStretching` | Piecewise lineal | Estiramiento de rango útil |
+| `BinaryThreshold` | Corte en umbral m | División blanco/negro |
+| `IntensityBandHighlight` | Rango [low, high] | Resaltado de banda de grises |
+| `GlobalEqualization` | `s_k = (L-1)/MN·Σnⱼ` | Ecualización global del histograma |
+| `CLAHEEqualization` | Adaptativa local | Ecualización limitada con CLAHE |
 
-1. **Detector de bordes de Canny (1986):** Detección de discontinuidades con gradientes de Sobel, supresión de no máximos, umbralización con histéresis y reconstrucción morfológica de contornos.
-2. **Umbralización Global Iterativa:** Algoritmo de partición bimodal según Gonzalez & Woods.
-3. **Umbralización de Otsu (1979):** Cálculo analítico del umbral óptimo $T^*$ mediante maximización de varianza inter-clase.
-4. **Agrupamiento K-Means (1967):** Segmentación no supervisada en espacio de color $L^*a^*b^*$ discriminando fondo, hoja sana y tejido lesionado.
+### Categoría 2 — Filtros Estadísticos / De Orden
+| Clase | Operación | Tipo de ruido |
+|---|---|---|
+| `MedianFilter` | Mediana de vecindad | Sal y pimienta |
+| `MaxFilter` | Máximo de vecindad | Pimienta (puntos oscuros) |
+| `MinFilter` | Mínimo de vecindad | Sal (puntos claros) |
+| `MidpointFilter` | (max + min) / 2 | Ruido uniforme |
+| `ArithmeticMeanFilter` | Promedio simple | Ruido Gaussiano |
+| `GeometricMeanFilter` | Producto^(1/N) | Gaussiano (mejor detalle) |
 
-### Archivos del Segundo Parcial en `resultados_segmentacion/`
+### Categoría 3 — Filtros Suavizantes
+| Clase | Kernel | Efecto |
+|---|---|---|
+| `BoxFilter` | 3×3, coef. 1/9 | Promedio uniforme |
+| `WeightedAverageFilter` | [1,2,1;2,4,2;1,2,1]/16 | Menos emborronamiento |
+| `GaussianBlurFilter` | Gaussiano σ configurable | Suavizado isótropo |
+| `BilateralFilter` | Espacial + intensidad | Preserva bordes |
 
-- **Presentaciones:**
-  - `Presentacion_Segundo_Parcial_Segmentacion.pptx`: Presentación en PowerPoint lista para exponer (formato widescreen 16:9).
-  - `presentacion_parcial2.pdf`: Presentación compilada con LaTeX Beamer (14 diapositivas estructuradas).
-  - `presentacion_parcial2.tex`: Código fuente en LaTeX Beamer.
-- **Visualizaciones y Métricas:**
-  - `comparaciones/caso_baja.png`: Panel 2×4 para Manzana Sana (Complejidad Baja).
-  - `comparaciones/caso_media.png`: Panel 2×4 para Tomate Early Blight (Complejidad Media).
-  - `comparaciones/caso_alta.png`: Panel 2×4 para Maíz Gray Leaf Spot (Complejidad Alta).
-  - `comparaciones/comparativa_global.png`: Tabla comparativa simultánea de los 4 métodos en los 3 casos.
-  - `graficas/histogramas_umbrales.png`: Distribución de intensidades y puntos de corte (Global vs Otsu).
-  - `diagramas/`: Diagramas de flujo de preprocesamiento y segmentación (`flujo_baja_complejidad.png`, `flujo_media_complejidad.png`, `flujo_alta_complejidad.png`).
-  - `metricas_segmentacion.json`: Parámetros cuantitativos y umbrales calculados.
+### Categoría 4 — Filtros Realzantes (Derivadas)
+| Clase | Tipo | Descripción |
+|---|---|---|
+| `SobelFilter` | 1ª derivada | Magnitud del gradiente ∇f |
+| `PrewittFilter` | 1ª derivada | Coeficientes uniformes |
+| `LaplacianFilter(enhance=False)` | 2ª derivada | Visualización ∇²f |
+| `LaplacianFilter(enhance=True)` | 2ª derivada | g = f + c·∇²f |
+| `HighboostFilter` | Highboost | g = f + k·(f - f̄), k>1 |
+| `UnsharpMaskFilter` | Unsharp Mask | Caso k=1.5 del Highboost |
+| `GradientLaplacianFilter` | 6 pasos | Laplaciano + Gradiente + Gamma |
 
-### Ejecución de la Segmentación
+### Categoría 5 — Segmentación y Detección Avanzada
+| Clase | Técnica | Descripción |
+|---|---|---|
+| `LoGFilter` | LoG / Marr-Hildreth | Laplaciano de la Gaussiana |
+| `LineDetectionFilter` | Máscaras orientadas | Detección de líneas 0°,45°,90°,-45° |
+| `ExGLeafSegmenter` | ExG + Otsu | Aislamiento de región foliar |
 
-```powershell
-python segmentacion_parcial2.py
-```
+---
+
+## Algoritmos de Segmentación (Parcial 2)
+- **Detector de bordes de Canny** (Suavizado → Sobel → NMS → Histéresis)
+- **Umbralización Global iterativa** (Gonzalez & Woods, convergencia por δT)
+- **Umbralización de Otsu** (maximización de varianza inter-clase σ²_B)
+- **Agrupamiento K-Means** (espacio L*a*b*, K=3, identificación por verdor)
