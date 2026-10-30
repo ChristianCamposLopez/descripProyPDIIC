@@ -1,6 +1,6 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
-\usepackage[spanish]{babel}
+\usepackage[provide=*=spanish]{babel}
 \usepackage{graphicx}
 \usepackage{geometry}
 \usepackage{float}
@@ -199,6 +199,15 @@ para reforzar los bordes. Esta combinación supera a usar un solo filtro por las
     mejora la visibilidad de las manchas y lesiones, y reduce la distracción del fondo.
     \item El resultado final es una imagen más uniforme y útil para clasificación o análisis posterior.
 \end{itemize}
+
+\subsection{Resultados Individuales por Filtro con Pie de Página}
+Para el cumplimiento exhaustivo de la rúbrica del curso, el pipeline implementa la exportación individual de cada uno de los 36 filtros evaluados (clasificados en las 5 categorías canónicas de Gonzalez \& Woods: transformaciones de intensidad, filtros de orden estadístico, filtros suavizantes pasabajas, filtros de derivada y detectores de bordes avanzados). Cada imagen individual se renderiza como una tarjeta autocontenida que integra en su pie de página:
+\begin{enumerate}
+    \item \textbf{Encabezado de Categoría y Título:} Nombre canónico del filtro.
+    \item \textbf{Ecuación / Kernel matemático:} Formulación analítica formal ($s = T(r)$ o convolución discreta).
+    \item \textbf{Propósito y Análisis Teórico:} Explicación cuantitativa del tipo de ruido atenuado, preservación de fronteras o realce de frecuencias espaciales.
+\end{enumerate}
+Los archivos individuales se encuentran organizados en \texttt{parcial1/resultados/individuales/muestra\_01/} a \texttt{muestra\_03/}, junto con el archivo auxiliar \texttt{figuras\_filtros.tex} para su inclusión directa en reportes extensos.
 
 %--------------------------------------------------------------
 \section{Referencias}

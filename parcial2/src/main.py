@@ -95,16 +95,27 @@ def main() -> None:
 
     dirs = ensure_dirs(args.salida)
 
-    # ─── Buscar imágenes de entrenamiento ─────────────────────────────────────
+    # ─── Buscar imágenes de entrenamiento o fallback a muestras ──────────────
     IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp"}
-    all_images = sorted(
-        p for p in args.dataset.rglob("*")
-        if p.is_file() and p.suffix.lower() in IMAGE_EXTS and "train" in p.parts
-    )
+    all_images = []
+    if args.dataset.exists():
+        all_images = sorted(
+            p for p in args.dataset.rglob("*")
+            if p.is_file() and p.suffix.lower() in IMAGE_EXTS and "train" in p.parts
+        )
 
     if not all_images:
-        print(f"[!] No se encontraron imágenes en {args.dataset}. "
-              f"Asegúrate de tener el dataset descargado.")
+        fallback_dir = Path("parcial1/muestras")
+        if fallback_dir.exists():
+            all_images = sorted(
+                p for p in fallback_dir.iterdir()
+                if p.is_file() and p.suffix.lower() in IMAGE_EXTS
+            )
+            if all_images:
+                print(f"[INFO] Dataset no encontrado; utilizando {len(all_images)} muestras locales desde '{fallback_dir}'.")
+
+    if not all_images:
+        print(f"[!] No se encontraron imágenes en {args.dataset} ni en parcial1/muestras.")
         return
 
     # ─── Seleccionar 3 imágenes (una por nivel de complejidad) ────────────────

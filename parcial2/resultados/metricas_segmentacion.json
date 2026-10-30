@@ -1,43 +1,92 @@
 {
-  "baja": {
-    "species": "Apple (Sana)",
-    "label": "Complejidad Baja",
-    "global_threshold": 112,
-    "global_iterations": 4,
-    "otsu_threshold": 111,
-    "otsu_variance": 2548.1322701428926,
-    "kmeans_k": 2,
-    "kmeans_leaf_clusters": [
-      0
-    ],
-    "kmeans_compactness": 58906393.90932897
+  "caso_1": {
+    "imagen": "hoja_03.jpg",
+    "complejidad": "Complejidad BAJA",
+    "especie": "muestras",
+    "canny": {
+      "parametros": {
+        "low_thresh": 50,
+        "high_thresh": 150,
+        "morph_kernel": 5
+      },
+      "pixeles_borde": 2181
+    },
+    "umbral_global": {
+      "T": 128,
+      "iteraciones": 3
+    },
+    "otsu": {
+      "T_star": 127,
+      "varianza_max": 155.6219
+    },
+    "kmeans": {
+      "K": 3,
+      "compactness": 19579469.13,
+      "clusters_hoja": [
+        0,
+        2
+      ],
+      "espacio_color": "LAB"
+    }
   },
-  "media": {
-    "species": "Tomato (Early Blight)",
-    "label": "Complejidad Media",
-    "global_threshold": 105,
-    "global_iterations": 1,
-    "otsu_threshold": 105,
-    "otsu_variance": 1535.2448858222722,
-    "kmeans_k": 3,
-    "kmeans_leaf_clusters": [
-      1,
-      2
-    ],
-    "kmeans_compactness": 31049862.644393086
+  "caso_2": {
+    "imagen": "hoja_01.jpg",
+    "complejidad": "Complejidad MEDIA",
+    "especie": "muestras",
+    "canny": {
+      "parametros": {
+        "low_thresh": 50,
+        "high_thresh": 150,
+        "morph_kernel": 5
+      },
+      "pixeles_borde": 1477
+    },
+    "umbral_global": {
+      "T": 122,
+      "iteraciones": 2
+    },
+    "otsu": {
+      "T_star": 121,
+      "varianza_max": 199.9674
+    },
+    "kmeans": {
+      "K": 3,
+      "compactness": 31043549.32,
+      "clusters_hoja": [
+        0,
+        1
+      ],
+      "espacio_color": "LAB"
+    }
   },
-  "alta": {
-    "species": "Corn (Gray Leaf Spot)",
-    "label": "Complejidad Alta",
-    "global_threshold": 98,
-    "global_iterations": 3,
-    "otsu_threshold": 97,
-    "otsu_variance": 2257.657333639852,
-    "kmeans_k": 3,
-    "kmeans_leaf_clusters": [
-      0,
-      1
-    ],
-    "kmeans_compactness": 31497608.830944955
+  "caso_3": {
+    "imagen": "hoja_02.jpg",
+    "complejidad": "Complejidad ALTA",
+    "especie": "muestras",
+    "canny": {
+      "parametros": {
+        "low_thresh": 30,
+        "high_thresh": 120,
+        "morph_kernel": 7
+      },
+      "pixeles_borde": 3677
+    },
+    "umbral_global": {
+      "T": 128,
+      "iteraciones": 3
+    },
+    "otsu": {
+      "T_star": 127,
+      "varianza_max": 157.6653
+    },
+    "kmeans": {
+      "K": 3,
+      "compactness": 18429768.45,
+      "clusters_hoja": [
+        1,
+        0
+      ],
+      "espacio_color": "LAB"
+    }
   }
 }

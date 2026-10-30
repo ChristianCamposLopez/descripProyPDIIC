@@ -516,31 +516,53 @@ class LaplacianFilter(ImageFilter):
     """Laplaciano ∇²f — segunda derivada.
 
     Genera respuesta fuerte ante detalles finos, puntos y cruces por cero.
+    Soporta formulación canónica para 4-vecinos y 8-vecinos (Gonzalez & Woods).
+
+    Máscaras canónicas:
+        4-vecinos (centro negativo, c = -1):
+            [[ 0,  1,  0],
+             [ 1, -4,  1],
+             [ 0,  1,  0]]
+        8-vecinos (centro negativo, c = -1):
+            [[ 1,  1,  1],
+             [ 1, -8,  1],
+             [ 1,  1,  1]]
 
     Modos:
-        * ``enhance=False``: devuelve |∇²f| normalizado (visualización).
-        * ``enhance=True``: aplica realce → g(x,y) = f(x,y) + c·∇²f(x,y).
-          Restaura el fondo sumando los bordes detectados a la imagen original.
+        * ``enhance=False``: devuelve |∇²f| normalizado a [0, 255] (visualización).
+        * ``enhance=True``: aplica realce → g(x,y) = f(x,y) - ∇²f(x,y)
+          (o con signo c según corresponda para restaurar el fondo).
 
     Args:
-        ksize: 1 → kernel 4-vecinos; 3 → kernel 8-vecinos extendido.
-        enhance: Si True, suma el laplaciano a la imagen original.
-        c: Constante de ponderación para el realce (positivo o negativo
-           según la definición del laplaciano utilizado).
+        neighbors: Conectividad vecinal (4 u 8).
+        enhance: Si True, suma/resta el laplaciano a la imagen original.
+        c: Constante de ponderación para el realce (-1.0 para centro negativo).
     """
 
-    def __init__(self, ksize: int = 1, enhance: bool = False, c: float = 1.0) -> None:
-        self.ksize = ksize
+    _KERNEL_4 = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float64)
+    _KERNEL_8 = np.array([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=np.float64)
+
+    def __init__(
+        self,
+        neighbors: int = 4,
+        enhance: bool = False,
+        c: float = -1.0,
+    ) -> None:
+        if neighbors not in (4, 8):
+            raise ValueError(f"neighbors debe ser 4 u 8, se recibió {neighbors}")
+        self.neighbors = neighbors
         self.enhance = enhance
         self.c = c
+        self._kernel = self._KERNEL_8 if neighbors == 8 else self._KERNEL_4
 
     def apply(self, image: np.ndarray) -> np.ndarray:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        lap = cv2.Laplacian(gray, cv2.CV_64F, ksize=self.ksize)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float64)
+        lap = cv2.filter2D(gray, cv2.CV_64F, self._kernel)
 
         if self.enhance:
             # g(x,y) = f(x,y) + c * ∇²f(x,y)
-            enhanced = gray.astype(np.float64) + self.c * lap
+            # Con centro negativo (-4 o -8), c = -1.0 resta el término negativo, sumando bordes
+            enhanced = gray + self.c * lap
             result = np.clip(enhanced, 0, 255).astype(np.uint8)
         else:
             abs_lap = np.abs(lap)
@@ -718,6 +740,47 @@ class LineDetectionFilter(ImageFilter):
         return cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
 
 
+class CannyFilter(ImageFilter):
+    """Detector de bordes de Canny (esquema secuencial de 4 etapas).
+
+    Etapas canónicas:
+        1. Suavizado Gaussiano para atenuar ruido.
+        2. Cálculo de magnitud y ángulo del gradiente (operador Sobel).
+        3. Supresión de No Máximos (NMS) para adelgazamiento estricto de bordes a 1 píxel.
+        4. Histéresis de umbral (doble umbral con 8-conectividad) para retener
+           bordes fuertes y bordes débiles conectados a ellos.
+
+    Args:
+        low_threshold: Umbral inferior de histéresis.
+        high_threshold: Umbral superior de histéresis.
+        aperture_size: Tamaño del operador de Sobel (3 por defecto).
+        l2_gradient: Si True calcula la norma L2 exacta sqrt(Gx^2 + Gy^2).
+    """
+
+    def __init__(
+        self,
+        low_threshold: int = 50,
+        high_threshold: int = 150,
+        aperture_size: int = 3,
+        l2_gradient: bool = True,
+    ) -> None:
+        self.low_threshold = low_threshold
+        self.high_threshold = high_threshold
+        self.aperture_size = aperture_size
+        self.l2_gradient = l2_gradient
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(
+            gray,
+            threshold1=self.low_threshold,
+            threshold2=self.high_threshold,
+            apertureSize=self.aperture_size,
+            L2gradient=self.l2_gradient,
+        )
+        return cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+
+
 class ExGLeafSegmenter(ImageFilter):
     """Segmentador de hoja mediante Índice de Exceso de Verde (ExG).
 
@@ -738,6 +801,24 @@ class ExGLeafSegmenter(ImageFilter):
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         mask_clean = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         return cv2.bitwise_and(image, image, mask=mask_clean)
+
+
+from dataclasses import dataclass
+
+# =============================================================================
+# ESPECIFICACIÓN Y METADATOS DE FILTROS (Para Pies de Página y Reportes)
+# =============================================================================
+
+@dataclass
+class FilterSpec:
+    """Metadatos formales de cada filtro para documentación y pies de página."""
+
+    id_name: str
+    title: str
+    category: str
+    formula: str
+    description: str
+    filter_obj: ImageFilter | None = None
 
 
 # =============================================================================
@@ -762,3 +843,313 @@ class Pipeline(ImageFilter):
         for f in self.filters:
             result = f.apply(result)
         return result
+
+
+def get_all_filter_specs() -> list[FilterSpec]:
+    """Retorna la lista completa y categorizada de filtros del temario de PDI.
+
+    Incluye metadatos académicos de fórmula, categoría y pie de página explicativo
+    para renderizado visual individual y generación de reportes.
+    """
+    return [
+        # ── Referencia ────────────────────────────────────────────────────────
+        FilterSpec(
+            id_name="01_original",
+            title="Imagen Original",
+            category="Referencia Base",
+            formula="f(x, y)",
+            description="Imagen de entrada sin modificaciones en espacio RGB para evaluar comparativamente el impacto de cada filtro.",
+            filter_obj=None,
+        ),
+        # ── Categoría 1: Transformaciones de Intensidad ───────────────────────
+        FilterSpec(
+            id_name="02_negativo",
+            title="Negativo de la Imagen",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = L - 1 - r = 255 - r",
+            description="Invierte los niveles de gris. Resalta detalles claros y lesiones sobre fondos oscuros dominantes.",
+            filter_obj=NegativeTransform(),
+        ),
+        FilterSpec(
+            id_name="03_logaritmico",
+            title="Transformación Logarítmica",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = c · log(1 + r)",
+            description="Comprime el rango dinámico de intensidades altas y expande los valores oscuros en zonas de sombra.",
+            filter_obj=LogTransform(),
+        ),
+        FilterSpec(
+            id_name="04_gamma_aclara",
+            title="Transformación Gamma (γ = 0.5)",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = c · r^γ  (γ = 0.5)",
+            description="Ley de potencias con γ < 1. Aclara la imagen expandiendo los tonos oscuros hacia niveles más perceptibles.",
+            filter_obj=GammaTransform(gamma=0.5),
+        ),
+        FilterSpec(
+            id_name="05_gamma_oscurece",
+            title="Transformación Gamma (γ = 2.0)",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = c · r^γ  (γ = 2.0)",
+            description="Ley de potencias con γ > 1. Oscurece la imagen comprimiendo los niveles oscuros y atenuando reflejos excesivos.",
+            filter_obj=GammaTransform(gamma=2.0),
+        ),
+        FilterSpec(
+            id_name="06_estiramiento_contraste",
+            title="Estiramiento de Contraste",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="[r1, r2] = [70, 200] → [s1, s2] = [0, 255]",
+            description="Transformación por tramos lineales. Amplía el intervalo útil de grises para separar estructuras foliares similares.",
+            filter_obj=ContrastStretching(r1=70, s1=0, r2=200, s2=255),
+        ),
+        FilterSpec(
+            id_name="07_umbral_binario",
+            title="Umbralización Binaria",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = 255 si r >= 128, 0 si r < 128",
+            description="Corte escalonado puntual en nivel m=128. Binariza la imagen dividiéndola tajantemente en blanco y negro.",
+            filter_obj=BinaryThreshold(m=128),
+        ),
+        FilterSpec(
+            id_name="08_banda_intensidad",
+            title="Resaltado de Bandas de Intensidad",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s = r si r ∈ [100, 200]; resto s = 0.2·r",
+            description="Aísla el rango útil de grises preservando sus valores originales mientras atenúa el fondo circundante.",
+            filter_obj=IntensityBandHighlight(low=100, high=200, background_scale=0.2),
+        ),
+        FilterSpec(
+            id_name="09_ecualizacion_global",
+            title="Ecualización Global del Histograma",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="s_k = ((L-1)/MN) · Σ n_j  (sobre canal L)",
+            description="Redistribuye de forma uniforme la densidad de probabilidades de intensidad, maximizando el contraste global.",
+            filter_obj=GlobalEqualization(),
+        ),
+        FilterSpec(
+            id_name="10_ecualizacion_clahe",
+            title="Ecualización Adaptativa CLAHE",
+            category="Cat 1: Transformaciones de Intensidad",
+            formula="CLAHE en canal L (clip=2.0, teselas 8×8)",
+            description="Ecualización adaptativa local por teselas que limita la amplificación de contraste para evitar exaltar el ruido.",
+            filter_obj=CLAHEEqualization(clip_limit=2.0, tile_grid_size=(8, 8)),
+        ),
+        # ── Categoría 2: Filtros Estadísticos / De Orden ──────────────────────
+        FilterSpec(
+            id_name="11_filtro_mediana",
+            title="Filtro de Mediana (5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = mediana { f(s,t) } sobre vecindad 5×5",
+            description="Filtro de orden estadístico no lineal. Óptimo para eliminar ruido impulsivo (sal y pimienta) preservando bordes.",
+            filter_obj=MedianFilter(kernel_size=5),
+        ),
+        FilterSpec(
+            id_name="12_filtro_max",
+            title="Filtro MAX (Dilatación 5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = max { f(s,t) } sobre vecindad 5×5",
+            description="Reemplaza cada píxel por el máximo de la vecindad. Diseñado para eliminar eficazmente ruido de pimienta (puntos oscuros).",
+            filter_obj=MaxFilter(kernel_size=5),
+        ),
+        FilterSpec(
+            id_name="13_filtro_min",
+            title="Filtro MIN (Erosión 5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = min { f(s,t) } sobre vecindad 5×5",
+            description="Reemplaza cada píxel por el mínimo de la vecindad. Diseñado para eliminar eficazmente ruido de sal (puntos claros).",
+            filter_obj=MinFilter(kernel_size=5),
+        ),
+        FilterSpec(
+            id_name="14_filtro_punto_medio",
+            title="Filtro de Punto Medio (5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = (max {f} + min {f}) / 2",
+            description="Promedia los extremos de intensidad en la vecindad. Altamente efectivo ante ruido con distribución uniforme.",
+            filter_obj=MidpointFilter(kernel_size=5),
+        ),
+        FilterSpec(
+            id_name="15_media_aritmetica",
+            title="Filtro de Media Aritmética (5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = (1/mn) · Σ f(s,t) sobre vecindad 5×5",
+            description="Promedio espacial simple. Reduce la varianza del ruido Gaussiano a costa de difuminar y emborronar contornos.",
+            filter_obj=ArithmeticMeanFilter(kernel_size=5),
+        ),
+        FilterSpec(
+            id_name="16_media_geometrica",
+            title="Filtro de Media Geométrica (5×5)",
+            category="Cat 2: Filtros Estadísticos / De Orden",
+            formula="g(x,y) = [ Π f(s,t) ]^(1/mn)",
+            description="Atenúa ruido Gaussiano preservando detalles finos y bordes sustancialmente mejor que la media aritmética.",
+            filter_obj=GeometricMeanFilter(kernel_size=5),
+        ),
+        # ── Categoría 3: Filtros Suavizantes (Pasabajas) ──────────────────────
+        FilterSpec(
+            id_name="17_filtro_caja",
+            title="Filtro de Caja (Box Filter 3×3)",
+            category="Cat 3: Filtros Suavizantes (Pasabajas)",
+            formula="w = (1/9) · [[1,1,1],[1,1,1],[1,1,1]]",
+            description="Máscara de correlación con pesos uniformes 1/9. Suaviza y atenúa ruido produciendo emborronamiento isotrópico.",
+            filter_obj=BoxFilter(),
+        ),
+        FilterSpec(
+            id_name="18_promedio_pesado",
+            title="Filtro de Promedio Pesado (3×3)",
+            category="Cat 3: Filtros Suavizantes (Pasabajas)",
+            formula="w = (1/16) · [[1,2,1],[2,4,2],[1,2,1]]",
+            description="Otorga mayor ponderación al píxel central y vecinos ortogonales, reduciendo el desenfoque respecto al Box Filter.",
+            filter_obj=WeightedAverageFilter(),
+        ),
+        FilterSpec(
+            id_name="19_filtro_gaussiano",
+            title="Filtro Gaussiano (5×5)",
+            category="Cat 3: Filtros Suavizantes (Pasabajas)",
+            formula="G(x,y) = exp( -(x² + y²) / (2σ²) )",
+            description="Filtro pasabajas continuo circularmente simétrico. Elimina ruido de alta frecuencia sin producir artefactos angulares.",
+            filter_obj=GaussianBlurFilter(kernel_size=(5, 5)),
+        ),
+        FilterSpec(
+            id_name="20_filtro_bilateral",
+            title="Filtro Bilateral (Preserva Bordes)",
+            category="Cat 3: Filtros Suavizantes (Pasabajas)",
+            formula="Bilateral (d=5, σ_color=35, σ_space=35)",
+            description="Suavizado adaptativo no lineal que promedia zonas homogéneas respetando y conservando nítidos los bordes de la hoja.",
+            filter_obj=BilateralFilter(d=5, sigma_color=35, sigma_space=35),
+        ),
+        # ── Categoría 4: Filtros Realzantes (Derivadas) ───────────────────────
+        FilterSpec(
+            id_name="21_sobel_gradiente",
+            title="Gradiente de Sobel (Primera Derivada)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="|∇f| ≈ sqrt(Gx² + Gy²)  con peso central 2",
+            description="Aproximación de primera derivada con alisado previo. Detecta bordes marcados con excelente robustez ante ruido.",
+            filter_obj=SobelFilter(ksize=3),
+        ),
+        FilterSpec(
+            id_name="22_prewitt_gradiente",
+            title="Gradiente de Prewitt (Primera Derivada)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="|∇f| ≈ sqrt(Gx² + Gy²)  con coeficientes uniformes 1",
+            description="Aproxima primeras derivadas parciales mediante diferencias finitas; detecta transiciones de intensidad pronunciadas.",
+            filter_obj=PrewittFilter(),
+        ),
+        FilterSpec(
+            id_name="23_laplaciano_4vec",
+            title="Laplaciano 4-vecinos (Segunda Derivada)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="∇²f con centro -4 y ortogonales +1",
+            description="Operador de segunda derivada isotrópico. Respuesta máxima ante detalles finos, líneas delgadas y cruces por cero.",
+            filter_obj=LaplacianFilter(neighbors=4, enhance=False),
+        ),
+        FilterSpec(
+            id_name="24_laplaciano_8vec",
+            title="Laplaciano 8-vecinos (Segunda Derivada)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="∇²f con centro -8 y todos vecinos +1",
+            description="Segunda derivada con vecindad completa de 8 vecinos; detección omnidireccional más uniforme de discontinuidades.",
+            filter_obj=LaplacianFilter(neighbors=8, enhance=False),
+        ),
+        FilterSpec(
+            id_name="25_realce_laplaciano_4vec",
+            title="Realce con Laplaciano (4-vecinos)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="g(x,y) = f(x,y) - ∇²f(x,y)",
+            description="Agudiza la imagen sumando los bordes finos detectados sobre la señal original para restaurar el fondo.",
+            filter_obj=LaplacianFilter(neighbors=4, enhance=True, c=-1.0),
+        ),
+        FilterSpec(
+            id_name="26_realce_laplaciano_8vec",
+            title="Realce con Laplaciano (8-vecinos)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="g(x,y) = f(x,y) - ∇²f(x,y)  (8 vecinos)",
+            description="Aguzado espacial intenso que enfatiza tanto bordes ortogonales como diagonales sobre el contenido fotográfico.",
+            filter_obj=LaplacianFilter(neighbors=8, enhance=True, c=-1.0),
+        ),
+        FilterSpec(
+            id_name="27_highboost",
+            title="Filtrado Highboost (k = 2.0)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="g(x,y) = f(x,y) + k · [f(x,y) - f̄(x,y)]  (k=2.0)",
+            description="Amplifica fuertemente la máscara de componentes de alta frecuencia sobre la imagen original para aguzado severo.",
+            filter_obj=HighboostFilter(k=2.0, blur_sigma=1.2),
+        ),
+        FilterSpec(
+            id_name="28_unsharp_mask",
+            title="Filtro Unsharp Mask (k = 1.5)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="g(x,y) = f(x,y) + 1.5 · [f(x,y) - f_Gauss(x,y)]",
+            description="Técnica clásica de máscara de desenfoque. Produce una apariencia visual de mayor nitidez y definición de nervaduras.",
+            filter_obj=UnsharpMaskFilter(sigma_x=1.2, amount=1.5),
+        ),
+        FilterSpec(
+            id_name="29_gradiente_laplaciano_6pasos",
+            title="Filtrado Gradiente-Laplaciano (6 Pasos)",
+            category="Cat 4: Filtros Realzantes (Derivadas)",
+            formula="g = [ f + (Realce_Lap × Mag_Sobel_Suave) ]^γ",
+            description="Combina Laplaciano con gradiente Sobel suavizado como máscara ponderada modulada con ajuste Gamma dinámico.",
+            filter_obj=GradientLaplacianFilter(gamma_correction=0.5),
+        ),
+        # ── Categoría 5: Segmentación y Detección de Bordes Avanzados ─────────
+        FilterSpec(
+            id_name="30_log_marr_hildreth",
+            title="Laplaciano de la Gaussiana (LoG)",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="∇² [ G(x,y,σ) * f(x,y) ]  (σ=1.0)",
+            description="Detector de Marr-Hildreth. Aplica suavizado Gaussiano multiescala previo para calcular bordes por cruces por cero.",
+            filter_obj=LoGFilter(sigma=1.0, ksize=9),
+        ),
+        FilterSpec(
+            id_name="31_lineas_0_horizontal",
+            title="Detección de Líneas Horizontales (0°)",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="Máscara 3×3 con fila central +2 y adyacentes -1",
+            description="Segunda derivada orientada a 0°. Aísla selectivamente líneas y contornos horizontales de 1 píxel de espesor.",
+            filter_obj=LineDetectionFilter(direction="0"),
+        ),
+        FilterSpec(
+            id_name="32_lineas_45_diagonal",
+            title="Detección de Líneas Diagonales (+45°)",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="Máscara 3×3 orientada a +45 grados",
+            description="Resalta de forma selectiva nervaduras y estructuras lineales orientadas a +45 grados atenuando el resto.",
+            filter_obj=LineDetectionFilter(direction="45"),
+        ),
+        FilterSpec(
+            id_name="33_lineas_90_vertical",
+            title="Detección de Líneas Verticales (90°)",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="Máscara 3×3 con columna central +2 y adyacentes -1",
+            description="Segunda derivada orientada a 90°. Aísla selectivamente nervaduras principales y fronteras verticales.",
+            filter_obj=LineDetectionFilter(direction="90"),
+        ),
+        FilterSpec(
+            id_name="34_lineas_menos45_diagonal",
+            title="Detección de Líneas Diagonales (-45°)",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="Máscara 3×3 orientada a -45 grados",
+            description="Resalta de forma selectiva estructuras lineales con inclinación diagonal descendente (-45 grados).",
+            filter_obj=LineDetectionFilter(direction="-45"),
+        ),
+        FilterSpec(
+            id_name="35_detector_canny",
+            title="Detector de Bordes de Canny",
+            category="Cat 5: Segmentación y Bordes Avanzados",
+            formula="Canny (Gauss + Sobel + NMS + Histéresis [50, 150])",
+            description="Detector óptimo de bordes. Genera contornos continuos de 1 píxel mediante supresión de no máximos e histéresis dual.",
+            filter_obj=CannyFilter(low_threshold=50, high_threshold=150, aperture_size=3, l2_gradient=True),
+        ),
+        # ── Pipeline ──────────────────────────────────────────────────────────
+        FilterSpec(
+            id_name="36_pipeline_foliar_exg",
+            title="Pipeline Foliar P1 (ExG + Otsu)",
+            category="Pipeline de Preprocesamiento Integrado",
+            formula="Bilateral → CLAHE → Unsharp → ExG (2G-R-B) + Otsu",
+            description="Pipeline compuesto: reducción de ruido con preservación de bordes, ecualización local y segmentación cromática foliar.",
+            filter_obj=Pipeline([
+                BilateralFilter(),
+                CLAHEEqualization(),
+                UnsharpMaskFilter(),
+                ExGLeafSegmenter(),
+            ]),
+        ),
+    ]
